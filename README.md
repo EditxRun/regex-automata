@@ -1,4 +1,4 @@
-# Regex Automata
+# Regex-Automata
 
 A full-stack web application that converts a regular expression into:
 
@@ -107,34 +107,36 @@ The frontend simulates a user-entered string against the returned DFA by:
 
 ```text
 regex-automata/
-├── backend/
-│   ├── logic/
-│   │   ├── parser.js
-│   │   ├── thompson.js
-│   │   └── nfaToDfa.js
-│   ├── routes/
-│   │   └── convert.js
-│   ├── package.json
-│   └── server.js
-├── frontend/
-│   └── my-react-app/
-│       ├── public/
-│       │   └── favicon.svg
-│       ├── src/
-│       │   ├── components/
-│       │   │   ├── GraphView.jsx
-│       │   │   └── RegexInput.jsx
-│       │   ├── api.js
-│       │   ├── app.css
-│       │   ├── app.jsx
-│       │   ├── index.css
-│       │   └── main.jsx
-│       ├── .env.example
-│       ├── .env.local
-│       ├── index.html
-│       ├── package.json
-│       └── vite.config.js
-└── README.md
+|-- backend/
+|   |-- logic/
+|   |   |-- parser.js
+|   |   |-- thompson.js
+|   |   `-- nfaToDfa.js
+|   |-- routes/
+|   |   `-- convert.js
+|   |-- package-lock.json
+|   |-- package.json
+|   `-- server.js
+|-- frontend/
+|   `-- my-react-app/
+|       |-- public/
+|       |   `-- favicon.svg
+|       |-- src/
+|       |   |-- components/
+|       |   |   |-- GraphView.jsx
+|       |   |   `-- RegexInput.jsx
+|       |   |-- api.js
+|       |   |-- app.css
+|       |   |-- app.jsx
+|       |   |-- index.css
+|       |   `-- main.jsx
+|       |-- .gitignore
+|       |-- eslint.config.js
+|       |-- index.html
+|       |-- package-lock.json
+|       |-- package.json
+|       `-- vite.config.js
+`-- README.md
 ```
 
 ## Important Files
@@ -224,24 +226,14 @@ cd frontend/my-react-app
 npm install
 ```
 
-### 2. Environment variable
-
-Create or use:
-
-`frontend/my-react-app/.env.local`
-
-```env
-VITE_API_URL=http://localhost:5000
-```
-
-### 3. Run the backend
+### 2. Run the backend
 
 ```bash
 cd backend
 node server.js
 ```
 
-### 4. Run the frontend
+### 3. Run the frontend
 
 ```bash
 cd frontend/my-react-app

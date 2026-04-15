@@ -16,7 +16,14 @@ function getStateAlias(index) {
   return alias;
 }
 
-export default function GraphView({ data, title, theme }) {
+export default function GraphView({
+  data,
+  title,
+  theme,
+  aliases = new Map(),
+  highlightedStates = [],
+  highlightedTransitions = [],
+}) {
   const svgRef = useRef();
 
   const runZoomAction = (actionName) => {
@@ -31,12 +38,14 @@ export default function GraphView({ data, title, theme }) {
       return undefined;
     }
 
+    // Sanitize title into a safe SVG ID slug (no spaces or special chars)
+    const safeId = `${theme}-${title}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+
     const themeRoot = svgRef.current?.closest("[data-theme]") ?? document.documentElement;
     const css = getComputedStyle(themeRoot);
     const palette = {
       edge: css.getPropertyValue("--graph-edge").trim(),
       edgeLabel: css.getPropertyValue("--graph-edge-label").trim(),
-      edgeLabelStroke: css.getPropertyValue("--graph-edge-label-stroke").trim(),
       nodeBase: css.getPropertyValue("--graph-node").trim(),
       nodeStroke: css.getPropertyValue("--graph-node-stroke").trim(),
       nodeText: css.getPropertyValue("--graph-node-text").trim(),
@@ -46,7 +55,14 @@ export default function GraphView({ data, title, theme }) {
       startTo: css.getPropertyValue("--graph-start-to").trim(),
       acceptFrom: css.getPropertyValue("--graph-accept-from").trim(),
       acceptTo: css.getPropertyValue("--graph-accept-to").trim(),
+      accent: css.getPropertyValue("--accent").trim(),
+      accentSoft: css.getPropertyValue("--accent-soft").trim(),
     };
+
+    const activeStates = new Set(highlightedStates);
+    const activeTransitionKeys = new Set(
+      highlightedTransitions.map((transition) => `${transition.from}::${transition.label}::${transition.to}`)
+    );
 
     const svgElement = svgRef.current;
     const svg = d3.select(svgElement);
@@ -60,7 +76,7 @@ export default function GraphView({ data, title, theme }) {
 
     defs
       .append("marker")
-      .attr("id", `arrowhead-${theme}-${title}`)
+      .attr("id", `arrowhead-${safeId}`)
       .attr("viewBox", "0 -5 10 10")
       .attr("refX", 10)
       .attr("refY", 0)
@@ -71,21 +87,34 @@ export default function GraphView({ data, title, theme }) {
       .attr("d", "M0,-5L10,0L0,5")
       .attr("fill", palette.edge);
 
-    const filter = defs
+    const glowFilter = defs
       .append("filter")
-      .attr("id", `glow-${theme}-${title}`)
+      .attr("id", `glow-${safeId}`)
       .attr("x", "-30%")
       .attr("y", "-30%")
       .attr("width", "160%")
       .attr("height", "160%");
 
-    filter.append("feGaussianBlur").attr("stdDeviation", "3").attr("result", "coloredBlur");
-    const merge = filter.append("feMerge");
+    glowFilter.append("feGaussianBlur").attr("stdDeviation", "3").attr("result", "coloredBlur");
+    const merge = glowFilter.append("feMerge");
     merge.append("feMergeNode").attr("in", "coloredBlur");
     merge.append("feMergeNode").attr("in", "SourceGraphic");
 
-    const startGradientId = `startGrad-${theme}-${title}`;
-    const acceptGradientId = `acceptGrad-${theme}-${title}`;
+    const activeFilter = defs
+      .append("filter")
+      .attr("id", `active-glow-${safeId}`)
+      .attr("x", "-40%")
+      .attr("y", "-40%")
+      .attr("width", "180%")
+      .attr("height", "180%");
+
+    activeFilter.append("feGaussianBlur").attr("stdDeviation", "5").attr("result", "activeBlur");
+    const activeMerge = activeFilter.append("feMerge");
+    activeMerge.append("feMergeNode").attr("in", "activeBlur");
+    activeMerge.append("feMergeNode").attr("in", "SourceGraphic");
+
+    const startGradientId = `startGrad-${safeId}`;
+    const acceptGradientId = `acceptGrad-${safeId}`;
 
     const startGrad = defs.append("radialGradient").attr("id", startGradientId);
     startGrad.append("stop").attr("offset", "0%").attr("stop-color", palette.startFrom);
@@ -105,7 +134,6 @@ export default function GraphView({ data, title, theme }) {
       });
 
     svg.call(zoom).on("dblclick.zoom", null);
-
     svgElement._zoomIn = () => svg.transition().duration(300).call(zoom.scaleBy, 1.4);
     svgElement._zoomOut = () => svg.transition().duration(300).call(zoom.scaleBy, 0.7);
     svgElement._zoomReset = () =>
@@ -114,8 +142,9 @@ export default function GraphView({ data, title, theme }) {
     const acceptSet = new Set(data.accept || []);
     const nodes = data.nodes.map((node) => ({ ...node }));
     const links = data.links.map((link) => ({ ...link }));
-    const aliasMap =
-      title === "DFA"
+    const aliasMap = aliases.size
+      ? aliases
+      : title.includes("DFA")
         ? new Map(nodes.map((node, index) => [node.id, getStateAlias(index)]))
         : new Map();
 
@@ -155,9 +184,17 @@ export default function GraphView({ data, title, theme }) {
       .enter()
       .append("path")
       .attr("fill", "none")
-      .attr("stroke", palette.edge)
-      .attr("stroke-width", 1.8)
-      .attr("marker-end", `url(#arrowhead-${theme}-${title})`);
+      .attr("stroke", (datum) => {
+        const src = typeof datum.source === "object" ? datum.source.id : datum.source;
+        const tgt = typeof datum.target === "object" ? datum.target.id : datum.target;
+        return activeTransitionKeys.has(`${src}::${datum.label}::${tgt}`) ? palette.accent : palette.edge;
+      })
+      .attr("stroke-width", (datum) => {
+        const src = typeof datum.source === "object" ? datum.source.id : datum.source;
+        const tgt = typeof datum.target === "object" ? datum.target.id : datum.target;
+        return activeTransitionKeys.has(`${src}::${datum.label}::${tgt}`) ? 3 : 1.8;
+      })
+      .attr("marker-end", `url(#arrowhead-${safeId})`);
 
     const edgeLabels = root
       .append("g")
@@ -168,10 +205,18 @@ export default function GraphView({ data, title, theme }) {
       .append("text")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
-      .attr("fill", palette.edgeLabel)
+      .attr("fill", (datum) => {
+        const src = typeof datum.source === "object" ? datum.source.id : datum.source;
+        const tgt = typeof datum.target === "object" ? datum.target.id : datum.target;
+        return activeTransitionKeys.has(`${src}::${datum.label}::${tgt}`) ? palette.accent : palette.edgeLabel;
+      })
       .attr("font-size", "11px")
       .attr("font-family", "'Space Grotesk', sans-serif")
-      .attr("font-weight", "500")
+      .attr("font-weight", (datum) => {
+        const src = typeof datum.source === "object" ? datum.source.id : datum.source;
+        const tgt = typeof datum.target === "object" ? datum.target.id : datum.target;
+        return activeTransitionKeys.has(`${src}::${datum.label}::${tgt}`) ? "700" : "500";
+      })
       .text((datum) => datum.label);
 
     const nodeElements = root
@@ -212,36 +257,67 @@ export default function GraphView({ data, title, theme }) {
       .append("circle")
       .attr("r", radius)
       .attr("fill", (datum) => {
-        if (datum.id === data.start) {
+        const isStart = datum.id === data.start;
+        const isAccept = acceptSet.has(datum.id);
+        if (isStart && isAccept) {
           return `url(#${startGradientId})`;
         }
-        if (acceptSet.has(datum.id)) {
+        if (isStart) {
+          return `url(#${startGradientId})`;
+        }
+        if (isAccept) {
           return `url(#${acceptGradientId})`;
         }
         return palette.nodeBase;
       })
       .attr("stroke", (datum) => {
-        if (datum.id === data.start) {
+        const isStart = datum.id === data.start;
+        const isAccept = acceptSet.has(datum.id);
+        if (activeStates.has(datum.id)) {
+          return palette.accent;
+        }
+        if (isStart && isAccept) {
+          // dual border: use accept color (green) so double-ring + start arrow conveys both
+          return palette.acceptStroke;
+        }
+        if (isStart) {
           return palette.startStroke;
         }
-        if (acceptSet.has(datum.id)) {
+        if (isAccept) {
           return palette.acceptStroke;
         }
         return palette.nodeStroke;
       })
-      .attr("stroke-width", 2)
-      .attr("filter", (datum) =>
-        datum.id === data.start || acceptSet.has(datum.id) ? `url(#glow-${theme}-${title})` : null
-      );
+      .attr("stroke-width", (datum) => (activeStates.has(datum.id) ? 3.5 : 2.5))
+      .attr("filter", (datum) => {
+        if (activeStates.has(datum.id)) {
+          return `url(#active-glow-${safeId})`;
+        }
+        if (datum.id === data.start || acceptSet.has(datum.id)) {
+          return `url(#glow-${safeId})`;
+        }
+        return null;
+      });
 
+    // Double ring for accept states
     nodeElements
       .filter((datum) => acceptSet.has(datum.id))
       .append("circle")
-      .attr("r", radius - 6)
+      .attr("r", radius - 5)
       .attr("fill", "none")
       .attr("stroke", palette.acceptStroke)
-      .attr("stroke-width", 1.5)
-      .attr("stroke-dasharray", "3,2");
+      .attr("stroke-width", 2)
+      .attr("stroke-dasharray", "4,2");
+
+    // Extra start indicator ring for states that are both start and accept
+    nodeElements
+      .filter((datum) => datum.id === data.start && acceptSet.has(datum.id))
+      .append("circle")
+      .attr("r", radius + 6)
+      .attr("fill", "none")
+      .attr("stroke", palette.startStroke)
+      .attr("stroke-width", 2)
+      .attr("stroke-dasharray", "6,3");
 
     nodeElements
       .append("text")
@@ -261,7 +337,7 @@ export default function GraphView({ data, title, theme }) {
       .append("line")
       .attr("stroke", palette.startStroke)
       .attr("stroke-width", 2)
-      .attr("marker-end", `url(#arrowhead-${theme}-${title})`)
+      .attr("marker-end", `url(#arrowhead-${safeId})`)
       .attr("stroke-dasharray", "4,3");
 
     simulation.on("tick", () => {
@@ -338,7 +414,7 @@ export default function GraphView({ data, title, theme }) {
     });
 
     return () => simulation.stop();
-  }, [data, theme, title]);
+  }, [aliases, data, theme, title, highlightedStates, highlightedTransitions]);
 
   return (
     <div className="graph-view">
@@ -375,18 +451,18 @@ export default function GraphView({ data, title, theme }) {
 
       <div className="graph-legend">
         {[
-          { color: "var(--graph-start-from)", label: "Start" },
-          { color: "var(--graph-accept-from)", label: "Accept" },
-          { color: "var(--graph-node)", label: "State" },
-        ].map(({ color, label }) => (
+          { color: "var(--graph-start-from)", stroke: "var(--graph-start-stroke)", label: "Start state" },
+          { color: "var(--graph-accept-from)", stroke: "var(--graph-accept-stroke)", label: "Accept / Final state" },
+          { color: "var(--graph-node)", stroke: "var(--graph-node-stroke)", label: "Normal state" },
+        ].map(({ color, stroke, label }) => (
           <span key={label} className="graph-legend-item">
-            <span className="graph-legend-dot" style={{ background: color }} />
+            <span className="graph-legend-dot" style={{ background: color, borderColor: stroke }} />
             {label}
           </span>
         ))}
       </div>
 
-      {title === "DFA" && (
+      {title.includes("DFA") && (
         <div className="dfa-aliases">
           {data.nodes.map((node, index) => (
             <span key={node.id} className="dfa-alias-chip">

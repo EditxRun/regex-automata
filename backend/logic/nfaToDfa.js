@@ -1,28 +1,7 @@
 /**
- * Subset Construction — converts an NFA to an equivalent DFA.
- *
- * The NFA format expected (from Thompson's construction):
- *   {
- *     states:      string[]
- *     transitions: { from: string, to: string, label: string }[]
- *     start:       string
- *     accept:      string[]
- *     alphabet:    string[]   (non-ε symbols)
- *   }
- *
- * The DFA produced has the same format, with:
- *   - state IDs that are sorted comma-joined NFA state sets  e.g. "q0,q2,q5"
- *   - no ε-transitions
+ * Subset Construction and DFA minimization helpers.
  */
 
-/**
- * Computes the ε-closure of a set of NFA states.
- * ε-closure(T) = all states reachable from T by zero or more ε-transitions.
- *
- * @param {Set<string>} states     starting NFA states
- * @param {Map<string, {to,label}[]>} transMap  adjacency map
- * @returns {Set<string>}
- */
 function epsilonClosure(states, transMap) {
   const closure = new Set(states);
   const stack = [...states];
@@ -41,15 +20,6 @@ function epsilonClosure(states, transMap) {
   return closure;
 }
 
-/**
- * Computes move(T, a) — the set of NFA states reachable from any state in T
- * via a single transition labelled `symbol`.
- *
- * @param {Set<string>} states
- * @param {string} symbol
- * @param {Map<string, {to,label}[]>} transMap
- * @returns {Set<string>}
- */
 function move(states, symbol, transMap) {
   const result = new Set();
   for (const state of states) {
@@ -63,73 +33,61 @@ function move(states, symbol, transMap) {
   return result;
 }
 
-/**
- * Canonical string key for a set of NFA states (sorted, comma-joined).
- * @param {Set<string>} stateSet
- * @returns {string}
- */
 function setKey(stateSet) {
   return [...stateSet].sort().join(",");
 }
 
-/**
- * Converts an NFA (with ε-transitions) to a DFA using subset construction.
- *
- * @param {object} nfa
- * @returns DFA object
- */
 function nfaToDFA(nfa) {
-  // Build adjacency map: state → [{to, label}]
   const transMap = new Map();
   for (const state of nfa.states) {
     transMap.set(state, []);
   }
   for (const { from, to, label } of nfa.transitions) {
-    if (!transMap.has(from)) transMap.set(from, []);
+    if (!transMap.has(from)) {
+      transMap.set(from, []);
+    }
     transMap.get(from).push({ to, label });
   }
 
   const nfaAcceptSet = new Set(nfa.accept);
   const alphabet = nfa.alphabet;
-
-  // Start DFA state = ε-closure of NFA start state
   const startClosure = epsilonClosure(new Set([nfa.start]), transMap);
   const startKey = setKey(startClosure);
 
-  // Maps DFA state key → Set<string> of NFA states
   const dfaStateMap = new Map();
   dfaStateMap.set(startKey, startClosure);
 
   const dfaTransitions = [];
   const dfaAccept = [];
-
   const worklist = [startKey];
   const visited = new Set();
 
   while (worklist.length) {
     const currentKey = worklist.pop();
-    if (visited.has(currentKey)) continue;
+    if (visited.has(currentKey)) {
+      continue;
+    }
     visited.add(currentKey);
 
-    const currentNFAStates = dfaStateMap.get(currentKey);
+    const currentNfaStates = dfaStateMap.get(currentKey);
 
-    // Check if this DFA state is accepting (contains any NFA accept state)
-    for (const s of currentNFAStates) {
-      if (nfaAcceptSet.has(s)) {
+    for (const state of currentNfaStates) {
+      if (nfaAcceptSet.has(state)) {
         dfaAccept.push(currentKey);
         break;
       }
     }
 
-    // For each symbol in the alphabet, compute the next DFA state
-    for (const sym of alphabet) {
-      const moved = move(currentNFAStates, sym, transMap);
-      if (moved.size === 0) continue; // dead/trap state — skip for cleanliness
+    for (const symbol of alphabet) {
+      const moved = move(currentNfaStates, symbol, transMap);
+      if (moved.size === 0) {
+        continue;
+      }
 
       const closure = epsilonClosure(moved, transMap);
       const nextKey = setKey(closure);
 
-      dfaTransitions.push({ from: currentKey, to: nextKey, label: sym });
+      dfaTransitions.push({ from: currentKey, to: nextKey, label: symbol });
 
       if (!dfaStateMap.has(nextKey)) {
         dfaStateMap.set(nextKey, closure);
@@ -138,10 +96,8 @@ function nfaToDFA(nfa) {
     }
   }
 
-  const dfaStates = [...dfaStateMap.keys()];
-
   return {
-    states: dfaStates,
+    states: [...dfaStateMap.keys()],
     alphabet,
     transitions: dfaTransitions,
     start: startKey,
@@ -149,4 +105,122 @@ function nfaToDFA(nfa) {
   };
 }
 
-module.exports = { nfaToDFA };
+function buildDfaTransitionMap(dfa) {
+  const transitionMap = new Map();
+  for (const state of dfa.states) {
+    transitionMap.set(state, new Map());
+  }
+  for (const transition of dfa.transitions) {
+    if (!transitionMap.has(transition.from)) {
+      transitionMap.set(transition.from, new Map());
+    }
+    transitionMap.get(transition.from).set(transition.label, transition.to);
+  }
+  return transitionMap;
+}
+
+function minimizeDFA(dfa) {
+  if (!dfa || dfa.states.length <= 1) {
+    return dfa;
+  }
+
+  const acceptSet = new Set(dfa.accept);
+  const transitionMap = buildDfaTransitionMap(dfa);
+  const nonAcceptStates = dfa.states.filter((state) => !acceptSet.has(state));
+  const acceptStates = dfa.states.filter((state) => acceptSet.has(state));
+
+  let partitions = [];
+  if (nonAcceptStates.length) {
+    partitions.push(nonAcceptStates);
+  }
+  if (acceptStates.length) {
+    partitions.push(acceptStates);
+  }
+
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    const blockIndex = new Map();
+
+    partitions.forEach((block, index) => {
+      block.forEach((state) => {
+        blockIndex.set(state, index);
+      });
+    });
+
+    const nextPartitions = [];
+
+    for (const block of partitions) {
+      const groups = new Map();
+
+      for (const state of block) {
+        const signature = dfa.alphabet
+          .map((symbol) => {
+            const target = transitionMap.get(state)?.get(symbol) ?? "__dead__";
+            return blockIndex.has(target) ? blockIndex.get(target) : "__dead__";
+          })
+          .join("|");
+
+        if (!groups.has(signature)) {
+          groups.set(signature, []);
+        }
+        groups.get(signature).push(state);
+      }
+
+      nextPartitions.push(...groups.values());
+
+      if (groups.size > 1) {
+        changed = true;
+      }
+    }
+
+    partitions = nextPartitions;
+  }
+
+  const stateToBlock = new Map();
+  partitions.forEach((block, index) => {
+    block.forEach((state) => {
+      stateToBlock.set(state, index);
+    });
+  });
+
+  const blockName = (block) => block.slice().sort().join(" | ");
+  const minimizedStates = partitions.map((block) => blockName(block));
+  const minimizedStart = blockName(partitions[stateToBlock.get(dfa.start)]);
+  const minimizedAccept = partitions
+    .filter((block) => block.some((state) => acceptSet.has(state)))
+    .map((block) => blockName(block));
+
+  const seenTransitions = new Set();
+  const minimizedTransitions = [];
+
+  partitions.forEach((block) => {
+    const representative = block[0];
+    const fromName = blockName(block);
+
+    for (const symbol of dfa.alphabet) {
+      const target = transitionMap.get(representative)?.get(symbol);
+      if (!target) {
+        continue;
+      }
+
+      const toName = blockName(partitions[stateToBlock.get(target)]);
+      const key = `${fromName}::${symbol}::${toName}`;
+      if (!seenTransitions.has(key)) {
+        seenTransitions.add(key);
+        minimizedTransitions.push({ from: fromName, to: toName, label: symbol });
+      }
+    }
+  });
+
+  return {
+    states: minimizedStates,
+    alphabet: dfa.alphabet,
+    transitions: minimizedTransitions,
+    start: minimizedStart,
+    accept: minimizedAccept,
+  };
+}
+
+module.exports = { nfaToDFA, minimizeDFA };

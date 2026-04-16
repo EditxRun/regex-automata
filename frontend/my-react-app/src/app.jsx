@@ -1,6 +1,7 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import RegexInput from "./components/RegexInput";
 import GraphView from "./components/GraphView";
+import QuizMode from "./components/QuizMode";
 import { convertRegex } from "./api";
 import "./app.css";
 
@@ -498,7 +499,6 @@ function TransitionTable({ title, machine, aliases, isNfa = false }) {
                     <thead>
                         <tr>
                             <th>State</th>
-                            <th>ID</th>
                             {displayAlphabet.map((symbol) => (
                                 <th key={`${title}-${symbol}`} className={symbol === "ε" ? "epsilon-col" : ""}>{symbol}</th>
                             ))}
@@ -516,7 +516,6 @@ function TransitionTable({ title, machine, aliases, isNfa = false }) {
                                         )}
                                     </div>
                                 </td>
-                                <td className="table-state-set">{row.state}</td>
                                 {displayAlphabet.map((symbol) => (
                                     <td key={`${row.state}-${symbol}`} className={symbol === "ε" ? "epsilon-col" : ""}>
                                         {renderCell(row.transitions, symbol)}
@@ -532,7 +531,8 @@ function TransitionTable({ title, machine, aliases, isNfa = false }) {
 }
 
 function App() {
-    const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
+    const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
+    const [mode, setMode] = useState("explorer");
     const [nfaMachine, setNfaMachine] = useState(null);
     const [dfaMachine, setDfaMachine] = useState(null);
     const [minDfaMachine, setMinDfaMachine] = useState(null);
@@ -545,10 +545,32 @@ function App() {
     const [autoRun, setAutoRun] = useState({ nfa: false, dfa: false, minDfa: false });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [shouldScrollToDiagrams, setShouldScrollToDiagrams] = useState(false);
+    const automataPanelsRef = useRef(null);
 
     useEffect(() => {
         localStorage.setItem("theme", theme);
     }, [theme]);
+
+    useEffect(() => {
+        if (!shouldScrollToDiagrams || loading || mode !== "explorer") {
+            return;
+        }
+
+        if (!nfaGraph && !dfaGraph && !minDfaGraph) {
+            return;
+        }
+
+        const frame = window.requestAnimationFrame(() => {
+            automataPanelsRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+            });
+            setShouldScrollToDiagrams(false);
+        });
+
+        return () => window.cancelAnimationFrame(frame);
+    }, [shouldScrollToDiagrams, loading, mode, nfaGraph, dfaGraph, minDfaGraph]);
 
     const nfaSimulation = useMemo(() => simulateNfa(nfaMachine, simulationInput), [nfaMachine, simulationInput]);
     const dfaSimulation = useMemo(
@@ -609,6 +631,7 @@ function App() {
     const handleConvert = async (regex) => {
         setLoading(true);
         setError(null);
+        setShouldScrollToDiagrams(true);
 
         try {
             const result = await convertRegex(regex);
@@ -624,6 +647,7 @@ function App() {
             setAutoRun({ nfa: false, dfa: false, minDfa: false });
         } catch (err) {
             console.error(err);
+            setShouldScrollToDiagrams(false);
             setError(
                 "We couldn't generate the automata. Check the regex format or make sure the backend service is available."
             );
@@ -705,6 +729,27 @@ function App() {
                     </p>
                 </header>
 
+                <div className="mode-switch" role="tablist" aria-label="View mode">
+                    <button
+                        type="button"
+                        className={`mode-switch-button${mode === "explorer" ? " active" : ""}`}
+                        onClick={() => setMode("explorer")}
+                    >
+                        Explorer
+                    </button>
+                    <button
+                        type="button"
+                        className={`mode-switch-button${mode === "quiz" ? " active" : ""}`}
+                        onClick={() => setMode("quiz")}
+                    >
+                        Quiz Mode
+                    </button>
+                </div>
+
+                {mode === "quiz" ? (
+                    <QuizMode theme={theme} />
+                ) : (
+                    <>
                 <section className="theory-panel">
                     <div className="theory-card">
                         <p className="section-label">Theory</p>
@@ -826,9 +871,9 @@ function App() {
                 )}
 
                 {(nfaGraph || dfaGraph || minDfaGraph) && (
-                    <div className="automata-panels">
+                    <div className="automata-panels" ref={automataPanelsRef}>
                         {nfaGraph && (
-                            <div className="automata-panel">
+                            <div className="automata-machine-section">
                                 <div className="graph-card">
                                     <GraphView
                                         data={nfaGraph}
@@ -843,7 +888,7 @@ function App() {
                             </div>
                         )}
                         {dfaGraph && (
-                            <div className="automata-panel">
+                            <div className="automata-machine-section">
                                 <div className="graph-card">
                                     <GraphView
                                         data={dfaGraph}
@@ -858,7 +903,7 @@ function App() {
                             </div>
                         )}
                         {minDfaGraph && (
-                            <div className="automata-panel">
+                            <div className="automata-machine-section">
                                 <div className="graph-card">
                                     <GraphView
                                         data={minDfaGraph}
@@ -878,7 +923,6 @@ function App() {
                         )}
                     </div>
                 )}
-
                 {!nfaGraph && !dfaGraph && !minDfaGraph && !loading && (
                     <div className="empty-state">
                         <div className="empty-icon">S</div>
@@ -891,6 +935,8 @@ function App() {
                         <div className="spinner" />
                         <p>Computing automata...</p>
                     </div>
+                )}
+                    </>
                 )}
 
                 <footer className="app-footer">

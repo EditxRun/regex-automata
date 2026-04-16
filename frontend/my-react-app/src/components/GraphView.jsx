@@ -21,6 +21,7 @@ export default function GraphView({
   title,
   theme,
   aliases = new Map(),
+  showAliases = true,
   highlightedStates = [],
   highlightedTransitions = [],
 }) {
@@ -31,6 +32,46 @@ export default function GraphView({
     if (svg && typeof svg[actionName] === "function") {
       svg[actionName]();
     }
+  };
+
+  const exportAsImage = () => {
+    const svgElement = svgRef.current;
+    if (!svgElement) return;
+
+    const clone = svgElement.cloneNode(true);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    
+    const themeRoot = svgElement.closest("[data-theme]") ?? document.documentElement;
+    const css = getComputedStyle(themeRoot);
+    const bgColor = css.getPropertyValue("--graph-bg").trim() || "#1e1e2e";
+    clone.style.backgroundColor = bgColor;
+    
+    const styleEl = document.createElement("style");
+    styleEl.textContent = `text { font-family: "Inter", sans-serif; }`;
+    clone.insertBefore(styleEl, clone.firstChild);
+
+    const svgData = new XMLSerializer().serializeToString(clone);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    
+    const scale = 2;
+    canvas.width = VIEW_W * scale;
+    canvas.height = VIEW_H * scale;
+
+    const img = new Image();
+    img.onload = () => {
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      const a = document.createElement("a");
+      a.download = `${title.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+      a.href = canvas.toDataURL("image/png");
+      a.click();
+    };
+    
+    const b64 = btoa(unescape(encodeURIComponent(svgData)));
+    img.src = "data:image/svg+xml;base64," + b64;
   };
 
   useEffect(() => {
@@ -444,6 +485,14 @@ export default function GraphView({
               {label}
             </button>
           ))}
+          <button
+            type="button"
+            className="graph-control-button"
+            onClick={exportAsImage}
+            title="Export as PNG"
+          >
+            ↓
+          </button>
         </div>
 
         <div className="graph-hint">Scroll to zoom. Drag to pan. Drag nodes to move.</div>
@@ -462,7 +511,7 @@ export default function GraphView({
         ))}
       </div>
 
-      {title.includes("DFA") && (
+      {showAliases && title.includes("DFA") && (
         <div className="dfa-aliases">
           {data.nodes.map((node, index) => (
             <span key={node.id} className="dfa-alias-chip">

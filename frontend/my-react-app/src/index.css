@@ -5,7 +5,7 @@ body,
   padding: 0;
   width: 100%;
   min-height: 100vh;
-  background: #f6f2e9;
+  background: #09090b;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -30,15 +30,15 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(108, 82, 54, 0.3);
+  background: rgba(161, 161, 170, 0.5);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(108, 82, 54, 0.45);
+  background: rgba(161, 161, 170, 0.8);
 }
 
 ::selection {
-  background: rgba(184, 92, 56, 0.25);
-  color: #24180d;
+  background: rgba(99, 102, 241, 0.25);
+  color: #09090b;
 }

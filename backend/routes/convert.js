@@ -13,5 +13,4 @@ router.post("/", (req, res) => {
 
   res.json({ nfa, dfa, minDfa });
 });
-
 module.exports = router;

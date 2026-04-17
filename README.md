@@ -2,7 +2,7 @@
 
 Regex-Automata is a full-stack automata theory visualizer that converts a regular expression into an `ε-NFA`, a `DFA`, and a minimized `DFA`.
 
-The project is built as an educational tool. It lets users enter a regex, read a short theory summary, view the regex in plain English, inspect interactive state diagrams, run input simulation step-by-step, and compare transition tables for all generated machines.
+The project is built as a complete educational tool. It lets users enter a regex, read theory summaries, view the regex context in plain English, inspect interactive state diagrams, run simulation step-by-step directly over the tape strings, and even test their knowledge in a dynamic Regex Quiz Mode!
 
 ## Live Deployment
 
@@ -16,13 +16,14 @@ Frontend:
 - Builds an equivalent `DFA`
 - Minimizes the `DFA`
 - Draws all three automata as interactive diagrams
+- Provides a **Quiz Mode**, where users test their regex knowledge against randomly generated Mystery DFAs.
 - Shows transition tables for `ε-NFA`, `DFA`, and minimized `DFA`
-- Simulates the same input string on all three machines
-- Supports step run, auto run, and reset controls
-- Highlights active states and transitions during simulation
-- Uses `q0`, `q1`, `q2`, ... labels for the `ε-NFA` and alphabetic aliases for DFA-based machines
-- Includes light and dark themes
-- Adapts to desktop and mobile layouts
+- Simulates any input string on all three machines simultaneously or individually
+- Supports step execution, auto-run pacing, and reset tracking
+- Highlights active states and transitions dynamically during simulation
+- Translates simple regex patterns into semantic plain English descriptions
+- Exports rendered interactive diagrams as high-quality PNGs
+- Features robust responsive layouts alongside Light/Dark modes
 
 ## Theory
 
@@ -31,13 +32,12 @@ Frontend:
 A regular expression describes a pattern over an alphabet. In this project, operators such as union, concatenation, repetition, optional choice, and grouping are used to define a language.
 
 Supported operators:
-
-- `|`
+- `|` (Union)
 - concatenation
-- `*`
-- `+`
-- `?`
-- `()`
+- `*` (Kleene Star)
+- `+` (One or more)
+- `?` (Optional)
+- `()` (Grouping)
 
 ### ε-NFA
 
@@ -49,84 +49,52 @@ A `DFA` is a deterministic finite automaton. For each state and each symbol in t
 
 ### DFA Minimization
 
-Minimization merges equivalent DFA states without changing the accepted language. This gives a smaller automaton that behaves exactly like the original DFA.
+Minimization merges equivalent DFA states without changing the accepted language. This results in a smaller automaton that behaves identically to the original DFA.
 
 ## Construction Approach
 
-The backend performs the formal automata construction, while the frontend focuses on visualization and interaction.
+This tool relies on a dedicated Node backend algorithm engine.
+The backend performs the formal automata construction while the React frontend processes and displays the structural output.
 
 ### 1. Regex Parsing
-
-The backend prepares the user-entered regex by:
-
-- inserting explicit concatenation where needed
-- converting infix regex into postfix form using a shunting-yard style algorithm
+The backend prepares the user-entered regex by inserting explicit concatenation where needed and converting the infix regex into postfix form using a shunting-yard style algorithm.
 
 ### 2. Thompson's Construction
-
-The postfix regex is converted into an `ε-NFA` using Thompson's construction.
-
-This step builds NFA fragments for:
-
-- literal characters
-- union
-- concatenation
-- Kleene star
-- one-or-more
-- optional
+The postfix regex is cleanly mapped to basic `ε-NFA` structures.
 
 ### 3. Subset Construction
-
-The `ε-NFA` is converted into a `DFA` using subset construction.
-
-This includes:
-
-- `ε`-closure calculation
-- move calculation for each symbol
-- DFA state generation from NFA state sets
-- accept-state detection
+The computed `ε-NFA` is passed through subset construction (`ε`-closures, multiform moves) to eliminate nondeterminism, generating a `DFA`.
 
 ### 4. DFA Minimization
-
-The generated DFA is minimized using state-partition refinement so equivalent states are merged into a smaller deterministic machine.
+Using Hopcroft's state-partition framework, equivalence classes are processed so equivalent states merge and reduce the state table optimally.
 
 ## UI Overview
 
 ### Main Sections
 
-- Header with theme toggle
-- Theory and construction cards
-- Regex input form with examples
-- Regex-to-English explanation
-- Shared input simulator for all machines
-- Interactive diagrams
-- Transition tables
-- Footer
+- Header with Quiz/Explorer modes and Theme toggles
+- Theory summary and educational explanations
+- Smart Regex input form with syntax badge rendering
+- Side-by-side interactive D3.js diagrams alongside their respective Machine Simulator modules
+- Comprehensive Transition State Tables
 
 ### Simulation Features
 
-Each machine has its own runner with:
-
-- step execution
-- auto run
-- reset
-- current-state display
-- tape visualization
-- step trace
-- acceptance or rejection summary
+Each machine (NFA, DFA, minDFA) contains a dedicated simulation runner featuring:
+- Step-by-step tape traversal
+- Active symbol tracking
+- Fluid animated status tags (`ACCEPTED` / `REJECTED`)
+- Clear tracking of currently traversed states
 
 ## Tech Stack
 
 ### Frontend
-
 - React
 - Vite
 - D3.js
-- Axios
-- CSS
+- Vanilla CSS (Responsive Flex/Grid structure)
 
 ### Backend
-
 - Node.js
 - Express
 - CORS
@@ -135,7 +103,7 @@ Each machine has its own runner with:
 
 ```text
 regex-automata/
-|-- backend/
+|-- server/
 |   |-- logic/
 |   |   |-- nfaToDfa.js
 |   |   |-- parser.js
@@ -154,7 +122,8 @@ regex-automata/
 |       |-- src/
 |       |   |-- components/
 |       |   |   |-- GraphView.jsx
-|       |   |   `-- RegexInput.jsx
+|       |   |   |-- RegexInput.jsx
+|       |   |   `-- QuizMode.jsx
 |       |   |-- api.js
 |       |   |-- app.css
 |       |   |-- app.jsx
@@ -163,68 +132,9 @@ regex-automata/
 |       |-- .gitignore
 |       |-- eslint.config.js
 |       |-- index.html
-|       |-- package-lock.json
 |       |-- package.json
 |       `-- vite.config.js
 `-- README.md
-```
-
-## Important Files
-
-### Backend
-
-- `backend/server.js` starts the Express server
-- `backend/routes/convert.js` exposes the regex conversion API
-- `backend/logic/parser.js` handles regex parsing and postfix conversion
-- `backend/logic/thompson.js` builds the `ε-NFA`
-- `backend/logic/nfaToDfa.js` builds the `DFA` and minimized `DFA`
-
-### Frontend
-
-- `frontend/my-react-app/src/app.jsx` contains the main UI, machine simulation logic, and transition table rendering
-- `frontend/my-react-app/src/components/GraphView.jsx` renders automata diagrams using D3
-- `frontend/my-react-app/src/components/RegexInput.jsx` contains the regex form and examples
-- `frontend/my-react-app/src/api.js` handles frontend API calls
-- `frontend/my-react-app/src/app.css` contains theme, layout, and component styling
-
-## API
-
-### `POST /convert`
-
-Request body:
-
-```json
-{
-  "regex": "(a|b)*abb"
-}
-```
-
-Response shape:
-
-```json
-{
-  "nfa": {
-    "states": [],
-    "alphabet": [],
-    "transitions": [],
-    "start": "",
-    "accept": []
-  },
-  "dfa": {
-    "states": [],
-    "alphabet": [],
-    "transitions": [],
-    "start": "",
-    "accept": []
-  },
-  "minDfa": {
-    "states": [],
-    "alphabet": [],
-    "transitions": [],
-    "start": "",
-    "accept": []
-  }
-}
 ```
 
 ## Local Development
@@ -232,14 +142,12 @@ Response shape:
 ### 1. Install Dependencies
 
 Backend:
-
 ```bash
-cd backend
+cd server
 npm install
 ```
 
 Frontend:
-
 ```bash
 cd frontend/my-react-app
 npm install
@@ -248,7 +156,7 @@ npm install
 ### 2. Run The Backend
 
 ```bash
-cd backend
+cd server
 node server.js
 ```
 
@@ -259,46 +167,27 @@ cd frontend/my-react-app
 npm run dev
 ```
 
-### 4. Optional Checks
-
-```bash
-cd frontend/my-react-app
-npm run lint
-npm run build
-```
-
 ## Deployment
 
-This project is set up for:
-
-- frontend deployment on Vercel
-- backend deployment on Render
-
-The backend uses:
-
-```js
-const PORT = process.env.PORT || 5000;
-```
-
-For production, the frontend should point to the hosted backend URL through `VITE_API_URL`.
+The backend expects standard hosting routing (e.g. Render/Heroku) under `process.env.PORT`.
+The frontend strictly hooks into `VITE_API_URL` to locate the active node conversion process for both Explorer and Quiz modes.
 
 ## Current Highlights
 
-- interactive D3 diagrams
+- **Interactive D3 Diagramming:** Live physics processing and panning
+- **Quiz Mode Module:** Fully integrated learning tests
+- **One-click PNG Exports:** Instantly snapshot the compiled topologies
 - `ε`-transition support
-- minimized DFA view
-- plain-English regex explanation
-- state aliasing for readability
-- responsive layout
-- theme toggle
+- Plain English translation tool
+- Clean and optimized step-through simulation UI tape
+- Responsive split-view geometry
 
 ## Future Improvements
 
-- stronger regex validation feedback
-- export diagram as image
 - automated backend and frontend tests
-- trap/dead-state visualization improvements
-- downloadable simulation traces
+- trap/dead-state visual representation toggles
+- exportable transitions lists
+- deeper semantic interpretations for extremely complex patterns
 
 ## Author
 

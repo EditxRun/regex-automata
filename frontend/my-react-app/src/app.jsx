@@ -390,46 +390,7 @@ function MachineRunnerCard({
                 )}
             </div>
 
-            {progress > 0 && simulation.steps.length > 0 && (
-                <div className="step-trace">
-                    <p className="section-label">Step Trace</p>
-                    <div className="trace-wrap">
-                        <table className="trace-table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Symbol</th>
-                                    <th>From</th>
-                                    <th>To</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {simulation.steps.slice(0, progress).map((step, i) => (
-                                    <tr
-                                        key={`trace-${title}-${i}`}
-                                        className={`trace-row${i === progress - 1 ? " trace-row-active" : ""}`}
-                                    >
-                                        <td className="trace-num">{i + 1}</td>
-                                        <td className="trace-symbol">{step.symbol}</td>
-                                        <td className="trace-states">
-                                            {step.from.length
-                                                ? step.from.map((s) => aliases.get(s) ?? s).join(", ")
-                                                : "â€”"}
-                                        </td>
-                                        <td className="trace-states">
-                                            {step.to.length ? (
-                                                step.to.map((s) => aliases.get(s) ?? s).join(", ")
-                                            ) : (
-                                                <span className="trace-dead">âˆ… dead end</span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
+            
 
             <div className={`simulation-status ${simulation.accepted ? "accepted" : "rejected"}`}>
                 <span className="status-pill">{simulation.accepted ? "Accepted" : "Rejected"}</span>
@@ -724,7 +685,7 @@ function App() {
                     </h1>
                     <p className="app-subtitle">
                         Build finite automata from a regular expression, inspect the generated
-                        graphs, simulate an input string across all three machines, and compare the
+                        diagrams, simulate an input string across all three machines, and compare the
                         original DFA with its minimized form.
                     </p>
                 </header>
@@ -826,93 +787,96 @@ function App() {
                             autoComplete="off"
                             spellCheck={false}
                         />
-
-                        <div className="runner-grid">
-                            <MachineRunnerCard
-                                title="ε-NFA"
-                                machine={nfaMachine}
-                                aliases={nfaAliases}
-                                simulation={nfaSimulation}
-                                input={simulationInput}
-                                progress={runnerProgress.nfa}
-                                autoRunning={autoRun.nfa}
-                                onStep={() => updateRunner("nfa", (value) => Math.min(value + 1, nfaSimulation.steps.length))}
-                                onReset={() => resetRunner("nfa")}
-                                onToggleAuto={() => toggleAutoRun("nfa", nfaSimulation)}
-                            />
-                            <MachineRunnerCard
-                                title="DFA"
-                                machine={dfaMachine}
-                                aliases={dfaAliases}
-                                simulation={dfaSimulation}
-                                input={simulationInput}
-                                progress={runnerProgress.dfa}
-                                autoRunning={autoRun.dfa}
-                                onStep={() => updateRunner("dfa", (value) => Math.min(value + 1, dfaSimulation.steps.length))}
-                                onReset={() => resetRunner("dfa")}
-                                onToggleAuto={() => toggleAutoRun("dfa", dfaSimulation)}
-                            />
-                            <MachineRunnerCard
-                                title="Minimized DFA"
-                                machine={minDfaMachine}
-                                aliases={minDfaAliases}
-                                simulation={minDfaSimulation}
-                                input={simulationInput}
-                                progress={runnerProgress.minDfa}
-                                autoRunning={autoRun.minDfa}
-                                onStep={() =>
-                                    updateRunner("minDfa", (value) => Math.min(value + 1, minDfaSimulation.steps.length))
-                                }
-                                onReset={() => resetRunner("minDfa")}
-                                onToggleAuto={() => toggleAutoRun("minDfa", minDfaSimulation)}
-                            />
-                        </div>
-                    </section>
+                        </section>
                 )}
 
                 {(nfaGraph || dfaGraph || minDfaGraph) && (
                     <div className="automata-panels" ref={automataPanelsRef}>
                         {nfaGraph && (
                             <div className="automata-machine-section">
-                                <div className="graph-card">
-                                    <GraphView
-                                        data={nfaGraph}
+                                <div className="machine-visuals-row">
+                                    <MachineRunnerCard
                                         title="ε-NFA"
-                                        theme={theme}
+                                        machine={nfaMachine}
                                         aliases={nfaAliases}
-                                        highlightedStates={nfaHighlights.states}
-                                        highlightedTransitions={nfaHighlights.transitions}
+                                        simulation={nfaSimulation}
+                                        input={simulationInput}
+                                        progress={runnerProgress.nfa}
+                                        autoRunning={autoRun.nfa}
+                                        onStep={() => updateRunner("nfa", (value) => Math.min(value + 1, nfaSimulation.steps.length))}
+                                        onReset={() => resetRunner("nfa")}
+                                        onToggleAuto={() => toggleAutoRun("nfa", nfaSimulation)}
                                     />
+                                    <div className="graph-card">
+                                        <GraphView
+                                            data={nfaGraph}
+                                            title="ε-NFA"
+                                            theme={theme}
+                                            aliases={nfaAliases}
+                                            highlightedStates={nfaHighlights.states}
+                                            highlightedTransitions={nfaHighlights.transitions}
+                                        />
+                                    </div>
                                 </div>
                                 <TransitionTable title="ε-NFA Transition Table" machine={nfaMachine} aliases={nfaAliases} isNfa />
                             </div>
                         )}
                         {dfaGraph && (
                             <div className="automata-machine-section">
-                                <div className="graph-card">
-                                    <GraphView
-                                        data={dfaGraph}
+                                <div className="machine-visuals-row">
+                                    <MachineRunnerCard
                                         title="DFA"
-                                        theme={theme}
+                                        machine={dfaMachine}
                                         aliases={dfaAliases}
-                                        highlightedStates={dfaHighlights.states}
-                                        highlightedTransitions={dfaHighlights.transitions}
+                                        simulation={dfaSimulation}
+                                        input={simulationInput}
+                                        progress={runnerProgress.dfa}
+                                        autoRunning={autoRun.dfa}
+                                        onStep={() => updateRunner("dfa", (value) => Math.min(value + 1, dfaSimulation.steps.length))}
+                                        onReset={() => resetRunner("dfa")}
+                                        onToggleAuto={() => toggleAutoRun("dfa", dfaSimulation)}
                                     />
+                                    <div className="graph-card">
+                                        <GraphView
+                                            data={dfaGraph}
+                                            title="DFA"
+                                            theme={theme}
+                                            aliases={dfaAliases}
+                                            highlightedStates={dfaHighlights.states}
+                                            highlightedTransitions={dfaHighlights.transitions}
+                                        />
+                                    </div>
                                 </div>
                                 <TransitionTable title="DFA Transition Table" machine={dfaMachine} aliases={dfaAliases} />
                             </div>
                         )}
                         {minDfaGraph && (
                             <div className="automata-machine-section">
-                                <div className="graph-card">
-                                    <GraphView
-                                        data={minDfaGraph}
+                                <div className="machine-visuals-row">
+                                    <MachineRunnerCard
                                         title="Minimized DFA"
-                                        theme={theme}
+                                        machine={minDfaMachine}
                                         aliases={minDfaAliases}
-                                        highlightedStates={minDfaHighlights.states}
-                                        highlightedTransitions={minDfaHighlights.transitions}
+                                        simulation={minDfaSimulation}
+                                        input={simulationInput}
+                                        progress={runnerProgress.minDfa}
+                                        autoRunning={autoRun.minDfa}
+                                        onStep={() =>
+                                            updateRunner("minDfa", (value) => Math.min(value + 1, minDfaSimulation.steps.length))
+                                        }
+                                        onReset={() => resetRunner("minDfa")}
+                                        onToggleAuto={() => toggleAutoRun("minDfa", minDfaSimulation)}
                                     />
+                                    <div className="graph-card">
+                                        <GraphView
+                                            data={minDfaGraph}
+                                            title="Minimized DFA"
+                                            theme={theme}
+                                            aliases={minDfaAliases}
+                                            highlightedStates={minDfaHighlights.states}
+                                            highlightedTransitions={minDfaHighlights.transitions}
+                                        />
+                                    </div>
                                 </div>
                                 <TransitionTable
                                     title="Minimized DFA Transition Table"
@@ -929,6 +893,7 @@ function App() {
                         <p>Your automata diagrams will appear here.</p>
                     </div>
                 )}
+
 
                 {loading && (
                     <div className="loading-state">

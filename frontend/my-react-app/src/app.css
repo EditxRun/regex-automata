@@ -507,7 +507,13 @@
 }
 
 .quiz-graph-card {
-  min-height: 380px;
+  height: auto;
+}
+
+.quiz-graph-card .graph-canvas {
+  height: 45vh;
+  min-height: 240px;
+  max-height: 320px;
 }
 
 .quiz-feedback.success {
@@ -651,6 +657,7 @@
   gap: 14px;
   min-height: 100%;
   padding: 18px;
+  min-width: 0;
 }
 
 .tape-track {
@@ -670,6 +677,7 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .tape-cell-active {
@@ -707,8 +715,9 @@
 
 .simulation-status {
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
   padding: 14px 16px;
   border-radius: 18px;
   border: 1px solid var(--border);
@@ -730,20 +739,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 98px;
-  padding: 6px 12px;
+  padding: 6px 14px;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text);
   background: var(--surface-strong);
+  border-radius: 99px;
 }
 
 .simulation-summary {
   flex: 1;
-  min-width: 220px;
-  line-height: 1.6;
+  min-width: 0;
+  line-height: 1.5;
+  font-size: 14px;
+  word-break: break-all;
 }
 
 .step-trace {
@@ -873,7 +884,7 @@
   background: var(--graph-bg);
   border-radius: 18px;
   border: 1px solid var(--border);
-  height: 320px;
+  height: 190px;
 }
 
 .graph-controls {
@@ -1228,4 +1239,32 @@
   .simulation-status {
     padding: 12px;
   }
+}
+
+.machine-visuals-row {
+  max-width: 1000px;
+  width: 100%;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+@media (max-width: 768px) {
+  .machine-visuals-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.machine-visuals-row .graph-card {
+  display: flex;
+  flex-direction: column;
+}
+.machine-visuals-row .graph-card .graph-view {
+  flex-grow: 1;
+}
+.machine-visuals-row .graph-card .graph-canvas {
+  height: 60vh;
+  max-height: 320px;
+  min-height: 240px;
 }
